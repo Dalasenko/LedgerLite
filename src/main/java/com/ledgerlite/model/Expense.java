@@ -17,14 +17,10 @@ public class Expense {
         this.date = date;
     }
 
-    // Getters and Setters
+    // Getters
     public int getId() { return id; }
     public String getTitle() { return title; }
     public double getAmount() { return amount; }
     public String getCategory() { return category; }
     public LocalDate getDate() { return date; }
-
-    public Object[] toRow() {
-        return new Object[]{id, title, String.format("$%.2f", amount), category, date};
-    }
 }

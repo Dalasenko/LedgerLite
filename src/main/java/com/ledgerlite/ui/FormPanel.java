@@ -1,7 +1,8 @@
 package com.ledgerlite.ui;
 
 import com.ledgerlite.dao.ExpenseDAO;
-import com.ledgerlite.util.StyleUtils;
+import com.ledgerlite.model.Expense;
+
 import javax.swing.*;
 import java.awt.*;
 import java.time.LocalDate;
@@ -10,92 +11,77 @@ public class FormPanel extends JPanel {
     private JTextField titleField;
     private JTextField amountField;
     private JComboBox<String> categoryBox;
-    private JButton saveButton;
-    private ExpenseDAO dao;
-    private Runnable onSaveCallback;
+    private ExpenseDAO expenseDAO;
+    private Runnable onAddCallback;
 
-    public FormPanel(ExpenseDAO dao, Runnable onSaveCallback) {
-        this.dao = dao;
-        this.onSaveCallback = onSaveCallback;
+    public FormPanel(Runnable onAddCallback) {
+        this.onAddCallback = onAddCallback;
+        this.expenseDAO = new ExpenseDAO();
 
-        // 1. Setup Layout
         setLayout(new GridBagLayout());
-        setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20)); // Padding around the edge
+        setPreferredSize(new Dimension(300, 0));
+        setBackground(new Color(50, 54, 62));
+
         GridBagConstraints gbc = new GridBagConstraints();
-
-        // 2. Common Layout Settings
-        gbc.fill = GridBagConstraints.HORIZONTAL; // Stretch width-wise
-        gbc.insets = new Insets(0, 0, 10, 0); // Bottom margin for each item
-        gbc.gridx = 0;
+        gbc.insets = new Insets(10, 15, 5, 15);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
+        gbc.gridx = 0;
 
-        // 3. Components
-
-        // Title Label & Field
-        addLabel("Expense Title:", 0, gbc);
+        // Title
+        addLabel("Title:", gbc, 0);
         titleField = new JTextField();
-        titleField.putClientProperty("JTextField.placeholderText", "e.g. Starbucks");
         gbc.gridy = 1;
         add(titleField, gbc);
 
-        // Amount Label & Field
-        addLabel("Amount ($):", 2, gbc);
+        // Amount
+        addLabel("Amount (€):", gbc, 2);
         amountField = new JTextField();
-        amountField.putClientProperty("JTextField.placeholderText", "0.00");
         gbc.gridy = 3;
         add(amountField, gbc);
 
-        // Category Label & Box
-        addLabel("Category:", 4, gbc);
-        categoryBox = new JComboBox<>(new String[]{"Food", "Transport", "Utilities", "Entertainment", "Health", "Other"});
+        // Category
+        addLabel("Category:", gbc, 4);
+        categoryBox = new JComboBox<>(new String[]{"Food", "Transport", "Shopping", "Bills", "Fun"});
         gbc.gridy = 5;
-        gbc.insets = new Insets(0, 0, 25, 0); // Extra space before button
         add(categoryBox, gbc);
 
-        // Save Button
-        saveButton = new JButton("Add Transaction");
-        saveButton.setFont(StyleUtils.FONT_BUTTON);
-        saveButton.setBackground(StyleUtils.COLOR_ACCENT);
-        saveButton.setForeground(Color.WHITE);
-        saveButton.setFocusPainted(false);
-        saveButton.addActionListener(e -> save());
-
+        // Button
+        JButton addBtn = new JButton("Add");
+        addBtn.setBackground(new Color(30, 136, 229));
+        addBtn.setForeground(Color.WHITE);
+        addBtn.addActionListener(e -> addTransaction());
         gbc.gridy = 6;
-        gbc.ipady = 10; // Make button slightly taller (internal padding)
-        add(saveButton, gbc);
+        gbc.insets = new Insets(20, 15, 10, 15);
+        add(addBtn, gbc);
 
-        // PUSH EVERYTHING UP (Spacer)
+        // Spacer
         gbc.gridy = 7;
-        gbc.weighty = 1.0; // Take up all remaining vertical space
-        gbc.fill = GridBagConstraints.BOTH;
+        gbc.weighty = 1.0;
         add(new JLabel(), gbc);
     }
 
-    private void addLabel(String text, int y, GridBagConstraints gbc) {
-        JLabel label = new JLabel(text);
-        label.setFont(StyleUtils.FONT_LABEL);
-        gbc.gridy = y;
-        add(label, gbc);
+    private void addTransaction() {
+        try {
+            String title = titleField.getText();
+            double amount = Double.parseDouble(amountField.getText());
+            String cat = (String) categoryBox.getSelectedItem();
+
+            if (!title.isEmpty()) {
+                expenseDAO.addExpense(new Expense(0, title, amount, cat, LocalDate.now()));
+                titleField.setText("");
+                amountField.setText("");
+                if (onAddCallback != null) onAddCallback.run(); // TRIGGER REFRESH
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Invalid Amount");
+        }
     }
 
-    private void save() {
-        try {
-            String title = titleField.getText().trim();
-            if (title.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Please enter a title.");
-                return;
-            }
-            double amount = Double.parseDouble(amountField.getText());
-            String category = (String) categoryBox.getSelectedItem();
-
-            dao.addExpense(title, amount, category, LocalDate.now());
-
-            titleField.setText("");
-            amountField.setText("");
-            onSaveCallback.run(); // Refresh the rest of the app
-
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Invalid Amount. Please enter a number.");
-        }
+    private void addLabel(String text, GridBagConstraints gbc, int y) {
+        JLabel l = new JLabel(text);
+        l.setForeground(Color.LIGHT_GRAY);
+        gbc.gridy = y;
+        add(l, gbc);
     }
 }

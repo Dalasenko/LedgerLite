@@ -1,76 +1,86 @@
 package com.ledgerlite.ui;
 
 import com.ledgerlite.dao.ExpenseDAO;
-import com.ledgerlite.util.StyleUtils;
+import com.ledgerlite.model.Expense;
+
 import javax.swing.*;
 import java.awt.*;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class DashboardPanel extends JPanel {
-    private ExpenseDAO dao;
+    private ExpenseDAO expenseDAO;
+    private JLabel totalLabel;
+    private JPanel chartPanel;
 
-    public DashboardPanel(ExpenseDAO dao) {
-        this.dao = dao;
+    public DashboardPanel() {
+        expenseDAO = new ExpenseDAO();
         setLayout(new BorderLayout());
-        setBackground(StyleUtils.COLOR_BG_PANEL); // Dark background
+        setBackground(new Color(40, 44, 52));
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        JLabel title = new JLabel("Expense Analytics");
-        title.setFont(StyleUtils.FONT_HEADER);
-        title.setForeground(StyleUtils.COLOR_TEXT_PRIMARY);
-        add(title, BorderLayout.NORTH);
-    }
+        // Total Amount Label
+        totalLabel = new JLabel("Total: 0.00€");
+        totalLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        totalLabel.setForeground(new Color(100, 255, 218)); // Έντονο χρώμα (Cyan)
+        totalLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        add(totalLabel, BorderLayout.NORTH);
 
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        Graphics2D g2 = (Graphics2D) g;
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-        Map<String, Double> data = dao.getCategoryTotals();
-
-        // If empty, draw a nice placeholder
-        if (data.isEmpty()) {
-            g2.setColor(Color.GRAY);
-            g2.setFont(StyleUtils.FONT_LABEL);
-            g2.drawString("Add your first expense to see analytics.", getWidth() / 2 - 100, getHeight() / 2);
-            return;
-        }
-
-        double maxVal = data.values().stream().max(Double::compare).orElse(1.0);
-        int barWidth = 50;
-        int gap = 30;
-        int startX = 40;
-        int baseline = getHeight() - 40;
-        int maxBarHeight = getHeight() - 100;
-
-        for (Map.Entry<String, Double> entry : data.entrySet()) {
-            int height = (int) ((entry.getValue() / maxVal) * maxBarHeight);
-
-            // Draw Bar with Gradient
-            GradientPaint gp = new GradientPaint(startX, baseline, StyleUtils.COLOR_ACCENT.darker(), startX, baseline - height, StyleUtils.COLOR_ACCENT);
-            g2.setPaint(gp);
-            g2.fillRoundRect(startX, baseline - height, barWidth, height, 15, 15);
-
-            // Draw Value on top
-            g2.setColor(Color.WHITE);
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 12));
-            String price = String.format("$%.0f", entry.getValue());
-            g2.drawString(price, startX + (barWidth - g2.getFontMetrics().stringWidth(price)) / 2, baseline - height - 5);
-
-            // Draw Category Label below
-            g2.setColor(Color.LIGHT_GRAY);
-            g2.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-            String cat = entry.getKey();
-            // Truncate if too long
-            if(cat.length() > 8) cat = cat.substring(0, 8) + "..";
-            g2.drawString(cat, startX + (barWidth - g2.getFontMetrics().stringWidth(cat)) / 2, baseline + 20);
-
-            startX += (barWidth + gap);
-        }
+        // Custom Panel για ζωγραφική
+        chartPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                drawChart(g);
+            }
+        };
+        chartPanel.setOpaque(false);
+        add(chartPanel, BorderLayout.CENTER);
     }
 
     public void refresh() {
-        repaint();
+        List<Expense> expenses = expenseDAO.getAllExpenses();
+        double total = expenses.stream().mapToDouble(Expense::getAmount).sum();
+        totalLabel.setText(String.format("Total Expenses: %.2f€", total));
+        chartPanel.repaint(); // Ξαναζωγραφίζει το γράφημα
+    }
+
+    private void drawChart(Graphics g) {
+        List<Expense> expenses = expenseDAO.getAllExpenses();
+        if (expenses.isEmpty()) return;
+
+        Map<String, Double> data = expenses.stream()
+                .collect(Collectors.groupingBy(Expense::getCategory, Collectors.summingDouble(Expense::getAmount)));
+
+        Graphics2D g2 = (Graphics2D) g;
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        int x = 20;
+        int barWidth = 80;
+        int height = chartPanel.getHeight() - 40;
+        int baseY = chartPanel.getHeight() - 20;
+
+        double maxVal = data.values().stream().mapToDouble(d -> d).max().orElse(1.0);
+
+        for (Map.Entry<String, Double> entry : data.entrySet()) {
+            int barHeight = (int) ((entry.getValue() / maxVal) * (height - 50));
+
+            // Μπάρα
+            g2.setColor(new Color(65, 105, 225)); // Royal Blue
+            g2.fillRoundRect(x, baseY - barHeight, barWidth, barHeight, 10, 10);
+
+            // Κείμενο Κατηγορίας
+            g2.setColor(Color.WHITE);
+            g2.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            g2.drawString(entry.getKey(), x + 5, baseY + 15);
+
+            // Κείμενο Ποσού (πάνω από τη μπάρα)
+            g2.setColor(Color.YELLOW);
+            g2.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            g2.drawString(String.format("%.0f€", entry.getValue()), x + 5, baseY - barHeight - 5);
+
+            x += barWidth + 40;
+        }
     }
 }

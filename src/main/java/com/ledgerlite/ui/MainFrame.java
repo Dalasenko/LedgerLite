@@ -1,45 +1,37 @@
 package com.ledgerlite.ui;
 
-import com.ledgerlite.dao.ExpenseDAO;
 import javax.swing.*;
 import java.awt.*;
 
 public class MainFrame extends JFrame {
-    private ExpenseDAO dao;
     private DashboardPanel dashboard;
-    private ExpenseTablePanel tablePanel;
-    private FormPanel formPanel;
+    private ExpenseTablePanel table;
+    private FormPanel form;
 
     public MainFrame() {
-        dao = new ExpenseDAO();
-        // CHANGED HERE: Updated to 2026
-        setTitle("LedgerLite - 2026 Edition");
-
-        setSize(1000, 650);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setTitle("LedgerLite");
+        setSize(1000, 700);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+        setLayout(new BorderLayout());
 
-        // Components
-        dashboard = new DashboardPanel(dao);
-        tablePanel = new ExpenseTablePanel(dao);
-        formPanel = new FormPanel(dao, this::refreshApp);
+        dashboard = new DashboardPanel();
+        table = new ExpenseTablePanel();
 
-        // Preferred size fixes the "Squashed" look
-        formPanel.setPreferredSize(new Dimension(300, getHeight()));
+        // Όταν η φόρμα προσθέτει κάτι -> Κάνε refresh το Dashboard και τον Πίνακα
+        form = new FormPanel(() -> {
+            dashboard.refresh();
+            table.refresh();
+        });
 
-        // Layout - Split pane for Right side (Dashboard on top, Table on bottom)
-        JSplitPane rightSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, dashboard, tablePanel);
-        rightSplit.setDividerLocation(300); // Give dashboard 300px height
-        rightSplit.setResizeWeight(0.5);
-        rightSplit.setBorder(null);
+        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, dashboard, table);
+        split.setDividerLocation(250); // Δώσε ύψος στο Dashboard
 
-        // Main Layout
-        add(formPanel, BorderLayout.WEST);
-        add(rightSplit, BorderLayout.CENTER);
-    }
+        add(form, BorderLayout.WEST);
+        add(split, BorderLayout.CENTER);
 
-    private void refreshApp() {
+        // Initial load
         dashboard.refresh();
-        tablePanel.refresh();
+        table.refresh();
     }
 }
